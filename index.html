@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#111714" />
+    <title>Headset Hop — Bluetooth profile tester</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <main class="shell">
+      <header>
+        <a class="brand" href="#" aria-label="Headset Hop home">
+          <span class="brand-mark" aria-hidden="true">H</span>
+          <span>HEADSET HOP</span>
+        </a>
+        <button class="about-button" id="aboutButton" type="button">HOW IT WORKS</button>
+      </header>
+
+      <section class="hero" aria-labelledby="pageTitle">
+        <div class="eyebrow"><span></span> BLUETOOTH PROFILE TESTER</div>
+        <h1 id="pageTitle">Hear the<br /><em>switch.</em></h1>
+        <p class="intro">Alternate your Bluetooth headset between high-quality audio and live microphone loopback.</p>
+      </section>
+
+      <section class="tester" aria-label="Headset test controls">
+        <div class="mode-card music active" id="musicCard">
+          <div class="mode-topline">
+            <span class="mode-number">01</span>
+            <span class="status-pill" id="musicStatus"><i></i> ACTIVE</span>
+          </div>
+          <div class="mode-icon" aria-hidden="true">♪</div>
+          <h2>Audio mode</h2>
+          <p>High-fidelity A2DP playback with an original ambient soundscape.</p>
+          <button class="mode-select" id="selectMusic" type="button">SWITCH TO AUDIO <span>↗</span></button>
+          <div class="visualizer" id="visualizer" aria-hidden="true"></div>
+        </div>
+
+        <div class="switch-track" aria-hidden="true">
+          <span>A2DP</span><div class="track-line"><i id="trackDot"></i></div><span>HFP / HSP</span>
+        </div>
+
+        <div class="mode-card mic" id="micCard">
+          <div class="mode-topline">
+            <span class="mode-number">02</span>
+            <span class="status-pill" id="micStatus"><i></i> STANDBY</span>
+          </div>
+          <div class="mode-icon mic-shape" aria-hidden="true"></div>
+          <h2>Headset mode</h2>
+          <p>Microphone capture routed directly back to your headset in real time.</p>
+          <button class="mode-select" id="selectMic" type="button">SWITCH TO HEADSET <span>↗</span></button>
+          <div class="meter" aria-hidden="true"><span id="micMeter"></span></div>
+        </div>
+      </section>
+
+      <section class="control-panel">
+        <div class="control-copy">
+          <span class="label">CURRENT MODE</span>
+          <strong id="currentMode">Audio playback</strong>
+          <span id="countdown">Switches in 15 seconds</span>
+        </div>
+        <div class="timer-wrap">
+          <label for="interval">SWITCH EVERY</label>
+          <select id="interval">
+            <option value="10">10 sec</option>
+            <option value="15" selected>15 sec</option>
+            <option value="30">30 sec</option>
+            <option value="60">1 min</option>
+          </select>
+        </div>
+        <button class="start-button" id="startButton" type="button"><span>START TEST</span><b>→</b></button>
+      </section>
+
+      <p class="privacy"><span>●</span> Audio stays on this device. Nothing is recorded or uploaded.</p>
+    </main>
+
+    <dialog id="aboutDialog">
+      <button id="closeDialog" aria-label="Close">×</button>
+      <span class="label">ABOUT THE SWITCH</span>
+      <h2>What your browser can do</h2>
+      <p>Browsers cannot select a Bluetooth profile directly. Starting microphone capture normally asks the operating system to switch a compatible headset to HFP/HSP; stopping it lets high-quality A2DP playback resume.</p>
+      <p>For best results, select your Bluetooth headset for both input and output in your system settings. Use headphones to prevent feedback.</p>
+    </dialog>
+    <script src="app.js"></script>
+  </body>
+</html>
