@@ -17,7 +17,9 @@ python3 -m http.server 8000
 ```
 
 Open `http://localhost:8000`, then connect a Bluetooth headset as both the
-system input and output.
+system input and output. The app requests microphone permission when the page
+loads, then immediately releases the temporary permission stream until headset
+mode is activated.
 
 ## Deploy
 
@@ -36,7 +38,9 @@ npm test
 Automatic mode alternates on the selected interval. Manual mode lets either
 mode card start the test or request the next profile transition directly.
 Audio mode plays a procedurally generated lo-fi melody and beat; headset mode
-mirrors the microphone into both browser output channels.
+mirrors the microphone into both browser output channels. Music continues
+quietly in headset mode by default and can be disabled with the **Keep music
+playing** checkbox.
 
 > Browsers do not expose direct A2DP/HFP profile controls. Requesting the
 > microphone generally causes the operating system to negotiate the headset

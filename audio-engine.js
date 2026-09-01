@@ -14,6 +14,7 @@ export class AudioEngine {
       || globalThis.AudioContext
       || globalThis.webkitAudioContext;
     this.mediaDevices = options.mediaDevices || globalThis.navigator?.mediaDevices;
+    this.permissionRequest = null;
     this.context = null;
     this.musicSchedulerTimer = null;
     this.musicPlaying = false;
@@ -66,21 +67,56 @@ export class AudioEngine {
     await this.context.resume();
   }
 
+  microphoneConstraints() {
+    return {
+      audio: {
+        channelCount: 1,
+        echoCancellation: false,
+        noiseSuppression: false,
+        autoGainControl: false,
+      },
+    };
+  }
+
+  requestMicPermission() {
+    if (!this.mediaDevices?.getUserMedia) {
+      return Promise.reject(new Error('Microphone unavailable'));
+    }
+    if (this.permissionRequest) return this.permissionRequest;
+
+    this.permissionRequest = this.mediaDevices
+      .getUserMedia(this.microphoneConstraints())
+      .then(permissionStream => {
+        permissionStream.getTracks().forEach(track => track.stop());
+        return true;
+      })
+      .finally(() => {
+        this.permissionRequest = null;
+      });
+    return this.permissionRequest;
+  }
+
   async startMusic(isCurrent = () => true) {
     await this.resume();
     if (!isCurrent()) return false;
 
     this.stopMic();
-    this.stopMusic();
-    this.musicPlaying = true;
-    this.sequencerStep = 0;
-    this.chordIndex = Math.floor(Math.random() * CHORDS.length);
-    this.melodyIndex = 1 + Math.floor(Math.random() * (MELODY.length - 3));
-    this.nextStepTime = this.context.currentTime + 0.06;
-    this.musicGain.gain.cancelScheduledValues(this.context.currentTime);
-    this.musicGain.gain.setTargetAtTime(0.22, this.context.currentTime, 0.18);
-    this.runMusicScheduler();
+    this.startMusicLayer(0.22, true);
     return true;
+  }
+
+  startMusicLayer(volume, restart = false) {
+    if (restart || !this.musicPlaying) {
+      clearTimeout(this.musicSchedulerTimer);
+      this.musicPlaying = true;
+      this.sequencerStep = 0;
+      this.chordIndex = Math.floor(Math.random() * CHORDS.length);
+      this.melodyIndex = 1 + Math.floor(Math.random() * (MELODY.length - 3));
+      this.nextStepTime = this.context.currentTime + 0.06;
+      this.runMusicScheduler();
+    }
+    this.musicGain.gain.cancelScheduledValues(this.context.currentTime);
+    this.musicGain.gain.setTargetAtTime(volume, this.context.currentTime, 0.18);
   }
 
   stopMusic() {
@@ -91,22 +127,21 @@ export class AudioEngine {
     this.musicGain.gain.setTargetAtTime(0, this.context.currentTime, 0.06);
   }
 
-  async startMic(isCurrent = () => true) {
+  async startMic(isCurrent = () => true, ambientEnabled = true) {
     await this.resume();
     if (!isCurrent()) return false;
 
-    this.stopMusic();
+    if (ambientEnabled) this.startMusicLayer(0.1);
+    else this.stopMusic();
     this.stopMic();
     if (!this.mediaDevices?.getUserMedia) throw new Error('Microphone unavailable');
 
-    const pendingStream = await this.mediaDevices.getUserMedia({
-      audio: {
-        channelCount: 1,
-        echoCancellation: false,
-        noiseSuppression: false,
-        autoGainControl: false,
-      },
-    });
+    if (this.permissionRequest) await this.permissionRequest;
+    if (!isCurrent()) return false;
+
+    const pendingStream = await this.mediaDevices.getUserMedia(
+      this.microphoneConstraints(),
+    );
     if (!isCurrent()) {
       pendingStream.getTracks().forEach(track => track.stop());
       return false;
@@ -124,6 +159,12 @@ export class AudioEngine {
     this.micSource.connect(this.stereoOutput, 0, 1);
     this.stereoOutput.connect(this.micGain).connect(this.context.destination);
     return true;
+  }
+
+  setMicAmbient(enabled) {
+    if (!this.context) return;
+    if (enabled) this.startMusicLayer(0.1);
+    else this.stopMusic();
   }
 
   stopMic() {

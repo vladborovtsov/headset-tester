@@ -27,6 +27,9 @@ h1 em { color:#698776; font-family:var(--serif); font-weight:400; }
 .mode-card h2 { font-size:27px; margin:0 0 8px; letter-spacing:-.04em; }
 .mode-card p { color:#6d746f; font-size:13px; line-height:1.6; max-width:310px; margin:0; }
 .active p { color:#afb9b3; }
+.ambient-toggle { display:flex; align-items:center; gap:9px; width:max-content; margin-top:18px; font:500 10px var(--mono); letter-spacing:.06em; cursor:pointer; }
+.ambient-toggle input { width:15px; height:15px; margin:0; accent-color:var(--lime); cursor:pointer; }
+.active .ambient-toggle { color:#dbe3de; }
 .mode-select { position:absolute; left:30px; bottom:55px; border:0; border-bottom:1px solid currentColor; padding:4px 0; background:none; color:inherit; font:500 10px var(--mono); letter-spacing:.1em; cursor:pointer; }
 .mode-select span[aria-hidden] { margin-left:8px; }
 .mode-select:disabled { cursor:default; opacity:.45; }

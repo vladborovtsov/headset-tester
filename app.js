@@ -11,6 +11,7 @@ ui.bind({
   selectMode: mode => controller.requestMode(mode),
   setSwitchingMethod: method => controller.setSwitchingMethod(method),
   intervalChanged: () => controller.intervalChanged(),
+  ambientChanged: enabled => controller.setAmbientInMic(enabled),
 });
 
 controller.init();

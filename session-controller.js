@@ -15,12 +15,31 @@ export class SessionController {
       transitioning: false,
       transitionId: 0,
       remaining: this.ui.getInterval(),
+      ambientInMic: this.ui.getAmbientInMic(),
+      micPermission: 'unknown',
     };
     this.countdownTimer = null;
+    this.permissionAttempt = null;
   }
 
   init() {
     this.ui.render(this.state);
+    this.permissionAttempt = this.requestInitialMicPermission();
+  }
+
+  async requestInitialMicPermission() {
+    this.state.micPermission = 'requesting';
+    this.ui.render(this.state);
+    try {
+      await this.audio.requestMicPermission();
+      this.state.micPermission = 'granted';
+      this.ui.render(this.state);
+    } catch (error) {
+      this.state.micPermission = error?.name === 'NotAllowedError'
+        ? 'denied'
+        : 'unavailable';
+      this.ui.render(this.state);
+    }
   }
 
   snapshot() {
@@ -64,11 +83,16 @@ export class SessionController {
     try {
       const started = nextMode === 'music'
         ? await this.audio.startMusic(isCurrent)
-        : await this.audio.startMic(isCurrent);
+        : await this.audio.startMic(isCurrent, this.state.ambientInMic);
       if (!started || !isCurrent()) return;
       this.finishTransition(id, nextMode);
     } catch (error) {
       if (id !== this.state.transitionId) return;
+      if (nextMode === 'mic') {
+        this.state.micPermission = error?.name === 'NotAllowedError'
+          ? 'denied'
+          : 'unavailable';
+      }
       const message = error?.name === 'NotAllowedError'
         ? 'Microphone permission was not granted'
         : error?.message === 'Web Audio is not supported'
@@ -85,6 +109,9 @@ export class SessionController {
     this.state.activeMode = mode;
     this.state.desiredMode = null;
     this.state.transitioning = false;
+    if (mode === 'mic') {
+      this.audio.setMicAmbient(this.state.ambientInMic);
+    }
     this.ui.render(this.state);
     this.ui.startVisualization(mode, () => this.audio.getMicLevel());
     this.startAutomaticCountdown();
@@ -120,6 +147,17 @@ export class SessionController {
     if (this.state.running && this.state.switchingMethod === 'auto') {
       this.startAutomaticCountdown();
     }
+  }
+
+  setAmbientInMic(enabled) {
+    this.state.ambientInMic = enabled;
+    if (
+      this.state.activeMode === 'mic'
+      || this.state.desiredMode === 'mic'
+    ) {
+      this.audio.setMicAmbient(enabled);
+    }
+    this.ui.render(this.state);
   }
 
   clearAutomaticCountdown() {

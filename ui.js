@@ -20,6 +20,7 @@ export class UI {
     this.visualizer = root.querySelector('#visualizer');
     this.musicActionLabel = root.querySelector('#musicActionLabel');
     this.micActionLabel = root.querySelector('#micActionLabel');
+    this.ambientInMic = root.querySelector('#ambientInMic');
     this.dialog = root.querySelector('#aboutDialog');
     this.aboutButton = root.querySelector('#aboutButton');
     this.closeDialogButton = root.querySelector('#closeDialog');
@@ -43,12 +44,20 @@ export class UI {
       () => handlers.setSwitchingMethod('manual'),
     );
     this.intervalSelect.addEventListener('change', handlers.intervalChanged);
+    this.ambientInMic.addEventListener(
+      'change',
+      () => handlers.ambientChanged(this.ambientInMic.checked),
+    );
     this.aboutButton.addEventListener('click', () => this.dialog.showModal());
     this.closeDialogButton.addEventListener('click', () => this.dialog.close());
   }
 
   getInterval() {
     return Number(this.intervalSelect.value);
+  }
+
+  getAmbientInMic() {
+    return this.ambientInMic.checked;
   }
 
   setCountdown(text) {
@@ -71,7 +80,13 @@ export class UI {
 
     if (!state.running) {
       this.musicStatus.innerHTML = this.statusMarkup('READY');
-      this.micStatus.innerHTML = this.statusMarkup('READY');
+      this.micStatus.innerHTML = this.statusMarkup(
+        state.micPermission === 'requesting'
+          ? 'REQUESTING'
+          : ['denied', 'unavailable'].includes(state.micPermission)
+            ? 'BLOCKED'
+            : 'READY',
+      );
       this.currentMode.textContent = 'Not running';
     } else {
       this.musicStatus.innerHTML = this.statusMarkup(
@@ -82,7 +97,11 @@ export class UI {
       this.micStatus.innerHTML = this.statusMarkup(
         isMic
           ? 'ACTIVE'
-          : state.desiredMode === 'mic' ? 'SWITCHING' : 'STANDBY',
+          : state.desiredMode === 'mic'
+            ? 'SWITCHING'
+            : ['denied', 'unavailable'].includes(state.micPermission)
+              ? 'BLOCKED'
+              : state.micPermission === 'requesting' ? 'REQUESTING' : 'STANDBY',
       );
       this.currentMode.textContent = state.transitioning
         ? state.desiredMode === 'mic'
@@ -101,6 +120,7 @@ export class UI {
     this.selectMusic.hidden = !manual;
     this.selectMic.hidden = !manual;
     this.intervalSelect.disabled = state.running;
+    this.ambientInMic.checked = state.ambientInMic;
 
     if (manual) {
       this.musicActionLabel.textContent = !state.running
@@ -130,7 +150,15 @@ export class UI {
     if (message) this.setCountdown(message);
     else if (!state.running) {
       this.setCountdown(
-        manual ? 'Choose a mode to begin' : 'Ready for automatic test',
+        state.micPermission === 'requesting'
+          ? 'Requesting microphone permission…'
+          : state.micPermission === 'denied'
+            ? 'Microphone permission was not granted'
+            : state.micPermission === 'unavailable'
+              ? 'Microphone unavailable'
+              : state.micPermission === 'granted'
+                ? 'Microphone ready'
+                : manual ? 'Choose a mode to begin' : 'Ready for automatic test',
       );
     } else if (state.transitioning) {
       this.setCountdown(
@@ -143,7 +171,15 @@ export class UI {
     }
 
     if (message) this.announcement.textContent = message;
-    else if (state.transitioning) {
+    else if (state.micPermission === 'requesting') {
+      this.announcement.textContent = 'Requesting microphone permission';
+    } else if (!state.running && state.micPermission === 'granted') {
+      this.announcement.textContent = 'Microphone permission granted';
+    } else if (!state.running && state.micPermission === 'denied') {
+      this.announcement.textContent = 'Microphone permission was not granted';
+    } else if (!state.running && state.micPermission === 'unavailable') {
+      this.announcement.textContent = 'Microphone unavailable';
+    } else if (state.transitioning) {
       this.announcement.textContent = this.currentMode.textContent;
     } else if (state.running && state.activeMode) {
       this.announcement.textContent = `${this.currentMode.textContent} active`;

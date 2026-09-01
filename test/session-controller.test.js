@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { AudioEngine } from '../audio-engine.js';
 import { SessionController } from '../session-controller.js';
 
 function deferred() {
@@ -20,14 +21,17 @@ function createHarness(audioOverrides = {}) {
 
   const ui = {
     getInterval: () => 15,
+    getAmbientInMic: () => true,
     render: (state, message) => renders.push({ state: { ...state }, message }),
     setCountdown: value => countdowns.push(value),
     startVisualization: mode => visualizations.push(mode),
     stopVisualization: () => {},
   };
   const audio = {
+    requestMicPermission: async () => true,
     startMusic: async isCurrent => isCurrent(),
     startMic: async isCurrent => isCurrent(),
+    setMicAmbient: () => {},
     stopAll: () => {},
     getMicLevel: () => 0,
     ...audioOverrides,
@@ -72,10 +76,81 @@ test('manual selection starts directly in the requested mode', async () => {
       transitioning: false,
       transitionId: 1,
       remaining: 15,
+      ambientInMic: true,
+      micPermission: 'granted',
     },
   );
   assert.deepEqual(harness.visualizations, ['mic']);
   assert.equal(harness.intervals.size, 0);
+});
+
+test('initialization immediately requests and records microphone permission', async () => {
+  let requests = 0;
+  const harness = createHarness({
+    requestMicPermission: async () => {
+      requests++;
+      return true;
+    },
+  });
+
+  harness.controller.init();
+  assert.equal(harness.controller.snapshot().micPermission, 'requesting');
+  await harness.controller.permissionAttempt;
+
+  assert.equal(requests, 1);
+  assert.equal(harness.controller.snapshot().micPermission, 'granted');
+});
+
+test('initial permission denial is recorded without starting a session', async () => {
+  const denied = new Error('Denied');
+  denied.name = 'NotAllowedError';
+  const harness = createHarness({
+    requestMicPermission: async () => {
+      throw denied;
+    },
+  });
+
+  harness.controller.init();
+  await harness.controller.permissionAttempt;
+
+  assert.equal(harness.controller.snapshot().micPermission, 'denied');
+  assert.equal(harness.controller.snapshot().running, false);
+});
+
+test('ambient music is enabled by default and follows checkbox changes', async () => {
+  let requestedAmbient;
+  const ambientChanges = [];
+  const harness = createHarness({
+    startMic: async (isCurrent, ambientEnabled) => {
+      requestedAmbient = ambientEnabled;
+      return isCurrent();
+    },
+    setMicAmbient: enabled => ambientChanges.push(enabled),
+  });
+
+  await harness.controller.requestMode('mic');
+  assert.equal(requestedAmbient, true);
+  assert.deepEqual(ambientChanges, [true]);
+
+  harness.controller.setAmbientInMic(false);
+  assert.equal(harness.controller.snapshot().ambientInMic, false);
+  assert.deepEqual(ambientChanges, [true, false]);
+});
+
+test('permission priming releases its temporary microphone stream', async () => {
+  let stopped = false;
+  const engine = new AudioEngine({
+    mediaDevices: {
+      getUserMedia: async () => ({
+        getTracks: () => [{ stop: () => { stopped = true; } }],
+      }),
+    },
+  });
+
+  await engine.requestMicPermission();
+
+  assert.equal(stopped, true);
+  assert.equal(engine.stream, null);
 });
 
 test('automatic countdown starts only after audio transition completes', async () => {
