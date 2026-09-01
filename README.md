@@ -1,21 +1,45 @@
 # Headset Hop
 
-A zero-build browser app for testing the transition between Bluetooth high-quality playback and microphone/headset mode.
+A dependency-free static website for testing the transition between Bluetooth
+high-quality playback and microphone/headset mode.
 
-## Run with Docker Compose
+The application uses only HTML, CSS, native JavaScript modules, and browser
+APIs. It has no framework, build step, backend, remote assets, or runtime
+dependencies.
 
-```sh
-docker compose up --build
-```
+## Run locally
 
-Open `http://localhost:8000`. Stop the app with `Ctrl+C`, or use `docker compose down` if you started it in detached mode.
-
-## Run without Docker
+Native JavaScript modules and microphone permissions require an HTTP origin.
+From the project directory, run:
 
 ```sh
 python3 -m http.server 8000
 ```
 
-Open `http://localhost:8000`, connect a Bluetooth headset as both the system input and output, and press **Start test**. Microphone access requires a secure context (`localhost` or HTTPS).
+Open `http://localhost:8000`, then connect a Bluetooth headset as both the
+system input and output.
 
-> Browsers do not expose direct A2DP/HFP profile controls. Requesting the microphone generally causes the operating system to negotiate the headset profile, while releasing it allows A2DP to resume.
+## Deploy
+
+Upload the repository's HTML, CSS, and JavaScript files to any static host. All
+URLs are relative, so the site works from either a domain root or a
+subdirectory. HTTPS is required for microphone access on non-localhost hosts.
+
+## Test
+
+The automated tests use Node's built-in test runner and download nothing:
+
+```sh
+npm test
+```
+
+Automatic mode alternates on the selected interval. Manual mode lets either
+mode card start the test or request the next profile transition directly.
+Audio mode plays a procedurally generated lo-fi melody and beat; headset mode
+mirrors the microphone into both browser output channels.
+
+> Browsers do not expose direct A2DP/HFP profile controls. Requesting the
+> microphone generally causes the operating system to negotiate the headset
+> profile, while releasing it allows A2DP to resume. The app duplicates
+> microphone audio into left and right channels, but a Bluetooth HFP route may
+> still be mono at the operating-system or headset level.

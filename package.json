@@ -1,0 +1,9 @@
+{
+  "name": "headset-hop",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test",
+    "check": "node --check app.js && node --check audio-engine.js && node --check session-controller.js && node --check ui.js"
+  }
+}

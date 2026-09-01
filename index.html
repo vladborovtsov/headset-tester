@@ -24,14 +24,15 @@
       </section>
 
       <section class="tester" aria-label="Headset test controls">
-        <div class="mode-card music active" id="musicCard">
+        <div class="mode-card music" id="musicCard">
           <div class="mode-topline">
             <span class="mode-number">01</span>
-            <span class="status-pill" id="musicStatus"><i></i> ACTIVE</span>
+            <span class="status-pill" id="musicStatus"><i></i> READY</span>
           </div>
           <div class="mode-icon" aria-hidden="true">♪</div>
           <h2>Audio mode</h2>
-          <p>High-fidelity A2DP playback with an original ambient soundscape.</p>
+          <p>High-fidelity A2DP playback with a generated lo-fi melody and beat.</p>
+          <button class="mode-select" id="selectMusic" type="button" hidden><span id="musicActionLabel">START AUDIO</span> <span aria-hidden="true">↗</span></button>
           <div class="visualizer" id="visualizer" aria-hidden="true"></div>
         </div>
 
@@ -42,11 +43,12 @@
         <div class="mode-card mic" id="micCard">
           <div class="mode-topline">
             <span class="mode-number">02</span>
-            <span class="status-pill" id="micStatus"><i></i> STANDBY</span>
+            <span class="status-pill" id="micStatus"><i></i> READY</span>
           </div>
           <div class="mode-icon mic-shape" aria-hidden="true"></div>
           <h2>Headset mode</h2>
           <p>Microphone capture routed directly back to your headset in real time.</p>
+          <button class="mode-select" id="selectMic" type="button" hidden><span id="micActionLabel">START HEADSET</span> <span aria-hidden="true">↗</span></button>
           <div class="meter" aria-hidden="true"><span id="micMeter"></span></div>
         </div>
       </section>
@@ -54,10 +56,18 @@
       <section class="control-panel">
         <div class="control-copy">
           <span class="label">CURRENT MODE</span>
-          <strong id="currentMode">Audio playback</strong>
-          <span id="countdown">Switches in 15 seconds</span>
+          <strong id="currentMode">Not running</strong>
+          <span id="countdown">Ready for automatic test</span>
+          <span class="visually-hidden" id="announcement" aria-live="polite"></span>
         </div>
-        <div class="timer-wrap">
+        <div class="switching-wrap">
+          <span class="label">SWITCHING</span>
+          <div class="segmented" role="group" aria-label="Switching method">
+            <button id="autoMode" class="selected" type="button" aria-pressed="true">AUTO</button>
+            <button id="manualMode" type="button" aria-pressed="false">MANUAL</button>
+          </div>
+        </div>
+        <div class="timer-wrap" id="timerWrap">
           <label for="interval">SWITCH EVERY</label>
           <select id="interval">
             <option value="10">10 sec</option>
@@ -77,8 +87,9 @@
       <span class="label">ABOUT THE SWITCH</span>
       <h2>What your browser can do</h2>
       <p>Browsers cannot select a Bluetooth profile directly. Starting microphone capture normally asks the operating system to switch a compatible headset to HFP/HSP; stopping it lets high-quality A2DP playback resume.</p>
+      <p>Manual mode lets you request either transition yourself. The microphone is duplicated into both browser output channels, although the Bluetooth call profile may still be mono.</p>
       <p>For best results, select your Bluetooth headset for both input and output in your system settings. Use headphones to prevent feedback.</p>
     </dialog>
-    <script src="app.js"></script>
+    <script type="module" src="./app.js"></script>
   </body>
 </html>
