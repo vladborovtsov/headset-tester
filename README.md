@@ -3,6 +3,8 @@
 A dependency-free static website for testing the transition between Bluetooth
 high-quality playback and microphone/headset mode.
 
+**[Open the live headset tester](https://vladborovtsov.github.io/headset-tester/)**
+
 The application uses only HTML, CSS, native JavaScript modules, and browser
 APIs. It has no framework, build step, backend, remote assets, or runtime
 dependencies.
