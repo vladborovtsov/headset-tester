@@ -35,8 +35,9 @@ The automated tests use Node's built-in test runner and download nothing:
 npm test
 ```
 
-Automatic mode alternates on the selected interval. Manual mode lets either
-mode card start the test or request the next profile transition directly.
+Manual mode is selected by default and lets either mode card start the test or
+request the next profile transition directly. Automatic mode alternates on the
+selected interval.
 Audio mode plays a procedurally generated lo-fi melody and beat; headset mode
 mirrors the microphone into both browser output channels. Music continues
 quietly in headset mode by default and can be disabled with the **Keep music

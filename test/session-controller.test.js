@@ -83,7 +83,6 @@ function createHarness(audioOverrides = {}) {
 test('manual selection starts directly in the requested mode', async () => {
   const harness = createHarness();
   harness.controller.init();
-  harness.controller.setSwitchingMethod('manual');
 
   await harness.controller.requestMode('mic');
 
@@ -175,6 +174,7 @@ test('automatic countdown starts only after audio transition completes', async (
       return isCurrent();
     },
   });
+  harness.controller.setSwitchingMethod('auto');
 
   const request = harness.controller.requestMode('music');
   assert.equal(harness.intervals.size, 0);
@@ -213,6 +213,7 @@ test('stopping invalidates a pending microphone transition', async () => {
 
 test('switching to manual clears the automatic countdown', async () => {
   const harness = createHarness();
+  harness.controller.setSwitchingMethod('auto');
   await harness.controller.requestMode('music');
   assert.equal(harness.intervals.size, 1);
 
@@ -235,6 +236,7 @@ test('elapsed automatic countdown requests the opposite mode', async () => {
       return isCurrent();
     },
   });
+  harness.controller.setSwitchingMethod('auto');
   await harness.controller.requestMode('music');
 
   harness.setNow(15_000);

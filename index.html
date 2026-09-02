@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#111714" />
     <title>Headset Hop — Bluetooth profile tester</title>
-    <link rel="stylesheet" href="styles.css" />
+    <link rel="stylesheet" href="styles.css?v=20260902-manual-default" />
   </head>
   <body>
     <main class="shell">
@@ -32,7 +32,7 @@
           <div class="mode-icon" aria-hidden="true">♪</div>
           <h2>Audio mode</h2>
           <p>High-fidelity A2DP playback with a generated lo-fi melody and beat.</p>
-          <button class="mode-select" id="selectMusic" type="button" hidden><span id="musicActionLabel">START AUDIO</span> <span aria-hidden="true">↗</span></button>
+          <div class="mode-select" id="musicAction" aria-hidden="true"><span id="musicActionLabel">START AUDIO</span> <span>↗</span></div>
           <div class="visualizer" id="visualizer" aria-hidden="true"></div>
         </div>
 
@@ -52,26 +52,26 @@
             <input id="ambientInMic" type="checkbox" checked />
             <span>Keep music playing</span>
           </label>
-          <button class="mode-select" id="selectMic" type="button" hidden><span id="micActionLabel">START HEADSET</span> <span aria-hidden="true">↗</span></button>
+          <div class="mode-select" id="micAction" aria-hidden="true"><span id="micActionLabel">START HEADSET</span> <span>↗</span></div>
           <div class="meter" aria-hidden="true"><span id="micMeter"></span></div>
         </div>
       </section>
 
-      <section class="control-panel">
+      <section class="control-panel manual">
         <div class="control-copy">
           <span class="label">CURRENT MODE</span>
           <strong id="currentMode">Not running</strong>
-          <span id="countdown">Ready for automatic test</span>
+          <span id="countdown">Choose a mode to begin</span>
           <span class="visually-hidden" id="announcement" aria-live="polite"></span>
         </div>
         <div class="switching-wrap">
           <span class="label">SWITCHING</span>
           <div class="segmented" role="group" aria-label="Switching method">
-            <button id="autoMode" class="selected" type="button" aria-pressed="true">AUTO</button>
-            <button id="manualMode" type="button" aria-pressed="false">MANUAL</button>
+            <button id="autoMode" type="button" aria-pressed="false">AUTO</button>
+            <button id="manualMode" class="selected" type="button" aria-pressed="true">MANUAL</button>
           </div>
         </div>
-        <div class="timer-wrap" id="timerWrap">
+        <div class="timer-wrap" id="timerWrap" hidden>
           <label for="interval">SWITCH EVERY</label>
           <select id="interval">
             <option value="10">10 sec</option>
@@ -80,7 +80,7 @@
             <option value="60">1 min</option>
           </select>
         </div>
-        <button class="start-button" id="startButton" type="button"><span>START TEST</span><b>→</b></button>
+        <button class="start-button" id="startButton" type="button" disabled><span>SELECT A MODE</span><b>↗</b></button>
       </section>
 
       <details class="audio-setup" open>
@@ -155,6 +155,6 @@
       <p>Manual mode lets you request either transition yourself. The microphone is duplicated into both browser output channels, although the Bluetooth call profile may still be mono.</p>
       <p>For best results, select your Bluetooth headset for both input and output in your system settings. Use headphones to prevent feedback.</p>
     </dialog>
-    <script type="module" src="./app.js"></script>
+    <script type="module" src="./app.js?v=20260902-manual-default"></script>
   </body>
 </html>

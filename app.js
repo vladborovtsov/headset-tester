@@ -1,6 +1,6 @@
-import { AudioEngine } from './audio-engine.js';
-import { SessionController } from './session-controller.js';
-import { UI } from './ui.js';
+import { AudioEngine } from './audio-engine.js?v=20260902-manual-default';
+import { SessionController } from './session-controller.js?v=20260902-manual-default';
+import { UI } from './ui.js?v=20260902-manual-default';
 
 const ui = new UI();
 const audio = new AudioEngine();

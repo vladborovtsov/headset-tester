@@ -6,8 +6,8 @@ export class UI {
     this.timerWrap = root.querySelector('#timerWrap');
     this.autoModeButton = root.querySelector('#autoMode');
     this.manualModeButton = root.querySelector('#manualMode');
-    this.selectMusic = root.querySelector('#selectMusic');
-    this.selectMic = root.querySelector('#selectMic');
+    this.musicAction = root.querySelector('#musicAction');
+    this.micAction = root.querySelector('#micAction');
     this.musicCard = root.querySelector('#musicCard');
     this.micCard = root.querySelector('#micCard');
     this.musicStatus = root.querySelector('#musicStatus');
@@ -50,8 +50,8 @@ export class UI {
 
   bind(handlers) {
     this.startButton.addEventListener('click', handlers.start);
-    this.selectMusic.addEventListener('click', () => handlers.selectMode('music'));
-    this.selectMic.addEventListener('click', () => handlers.selectMode('mic'));
+    this.bindModeCard(this.musicCard, 'music', handlers.selectMode);
+    this.bindModeCard(this.micCard, 'mic', handlers.selectMode);
     this.autoModeButton.addEventListener(
       'click',
       () => handlers.setSwitchingMethod('auto'),
@@ -87,6 +87,29 @@ export class UI {
       );
     });
     this.muteMic.addEventListener('click', handlers.toggleMicMute);
+  }
+
+  bindModeCard(card, mode, selectMode) {
+    card.addEventListener('click', event => {
+      if (
+        !card.classList.contains('selectable')
+        || event.target.closest('input, label, button, select, a')
+      ) {
+        return;
+      }
+      selectMode(mode);
+    });
+    card.addEventListener('keydown', event => {
+      if (
+        event.target !== card
+        || !card.classList.contains('selectable')
+        || !['Enter', ' '].includes(event.key)
+      ) {
+        return;
+      }
+      event.preventDefault();
+      selectMode(mode);
+    });
   }
 
   getInterval() {
@@ -166,8 +189,8 @@ export class UI {
     this.autoModeButton.setAttribute('aria-pressed', String(!manual));
     this.manualModeButton.setAttribute('aria-pressed', String(manual));
     this.timerWrap.hidden = manual;
-    this.selectMusic.hidden = !manual;
-    this.selectMic.hidden = !manual;
+    this.musicAction.hidden = !manual;
+    this.micAction.hidden = !manual;
     this.intervalSelect.disabled = state.running;
     this.ambientInMic.checked = state.ambientInMic;
     this.ambientVolume.disabled = !state.ambientInMic;
@@ -185,8 +208,19 @@ export class UI {
           : state.desiredMode === 'mic'
             ? 'SWITCHING…'
             : 'SWITCH TO HEADSET';
-      this.selectMusic.disabled = isMusic || state.desiredMode === 'music';
-      this.selectMic.disabled = isMic || state.desiredMode === 'mic';
+      this.setModeCardState(
+        this.musicCard,
+        !(isMusic || state.desiredMode === 'music'),
+        this.musicActionLabel.textContent,
+      );
+      this.setModeCardState(
+        this.micCard,
+        !(isMic || state.desiredMode === 'mic'),
+        this.micActionLabel.textContent,
+      );
+    } else {
+      this.clearModeCardState(this.musicCard);
+      this.clearModeCardState(this.micCard);
     }
 
     this.startButton.classList.toggle('running', state.running);
@@ -236,6 +270,22 @@ export class UI {
     }
 
     this.renderAudioTools(state);
+  }
+
+  setModeCardState(card, selectable, label) {
+    card.classList.toggle('selectable', selectable);
+    card.setAttribute('role', 'button');
+    card.setAttribute('aria-label', label);
+    card.setAttribute('aria-disabled', String(!selectable));
+    card.tabIndex = selectable ? 0 : -1;
+  }
+
+  clearModeCardState(card) {
+    card.classList.remove('selectable');
+    card.removeAttribute('role');
+    card.removeAttribute('aria-label');
+    card.removeAttribute('aria-disabled');
+    card.removeAttribute('tabindex');
   }
 
   renderAudioTools(state) {

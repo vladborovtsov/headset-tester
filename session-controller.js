@@ -9,7 +9,7 @@ export class SessionController {
     };
     this.state = {
       running: false,
-      switchingMethod: 'auto',
+      switchingMethod: 'manual',
       activeMode: null,
       desiredMode: null,
       transitioning: false,
