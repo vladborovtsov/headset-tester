@@ -17,14 +17,28 @@ export class SessionController {
       remaining: this.ui.getInterval(),
       ambientInMic: this.ui.getAmbientInMic(),
       micPermission: 'unknown',
+      loopbackVolume: this.ui.getLoopbackVolume(),
+      ambientVolume: this.ui.getAmbientVolume(),
+      micMuted: false,
+      inputDevices: [],
+      selectedInputId: '',
+      outputSelectionSupported: this.audio.supportsOutputSelection(),
+      outputSelecting: false,
+      outputLabel: 'System default output',
+      outputError: '',
+      diagnostics: this.audio.getDiagnostics(),
     };
+    this.audio.setLoopbackVolume(this.state.loopbackVolume);
+    this.audio.setAmbientVolume(this.state.ambientVolume);
     this.countdownTimer = null;
     this.permissionAttempt = null;
   }
 
   init() {
+    this.audio.onDeviceChange(() => this.refreshInputDevices());
     this.ui.render(this.state);
     this.permissionAttempt = this.requestInitialMicPermission();
+    return this.permissionAttempt;
   }
 
   async requestInitialMicPermission() {
@@ -33,13 +47,34 @@ export class SessionController {
     try {
       await this.audio.requestMicPermission();
       this.state.micPermission = 'granted';
-      this.ui.render(this.state);
+      await this.refreshInputDevices(false);
     } catch (error) {
       this.state.micPermission = error?.name === 'NotAllowedError'
         ? 'denied'
         : 'unavailable';
-      this.ui.render(this.state);
     }
+    this.refreshDiagnostics();
+    this.ui.render(this.state);
+  }
+
+  async refreshInputDevices(render = true) {
+    try {
+      this.state.inputDevices = await this.audio.listAudioInputs();
+      const selectedIsAvailable = this.state.inputDevices.some(
+        device => device.deviceId === this.state.selectedInputId,
+      );
+      if (this.state.selectedInputId && !selectedIsAvailable) {
+        this.state.selectedInputId = '';
+      }
+    } catch {
+      this.state.inputDevices = [];
+      this.state.selectedInputId = '';
+    }
+    if (render) this.ui.render(this.state);
+  }
+
+  refreshDiagnostics() {
+    this.state.diagnostics = this.audio.getDiagnostics();
   }
 
   snapshot() {
@@ -56,9 +91,10 @@ export class SessionController {
     }
   }
 
-  async requestMode(nextMode) {
+  async requestMode(nextMode, { force = false } = {}) {
     if (
-      this.state.running
+      !force
+      && this.state.running
       && this.state.activeMode === nextMode
       && !this.state.transitioning
     ) {
@@ -83,7 +119,11 @@ export class SessionController {
     try {
       const started = nextMode === 'music'
         ? await this.audio.startMusic(isCurrent)
-        : await this.audio.startMic(isCurrent, this.state.ambientInMic);
+        : await this.audio.startMic(
+          isCurrent,
+          this.state.ambientInMic,
+          this.state.selectedInputId,
+        );
       if (!started || !isCurrent()) return;
       this.finishTransition(id, nextMode);
     } catch (error) {
@@ -112,8 +152,9 @@ export class SessionController {
     if (mode === 'mic') {
       this.audio.setMicAmbient(this.state.ambientInMic);
     }
+    this.refreshDiagnostics();
     this.ui.render(this.state);
-    this.ui.startVisualization(mode, () => this.audio.getMicLevel());
+    this.ui.startVisualization(mode, () => this.audio.getMicMetrics());
     this.startAutomaticCountdown();
   }
 
@@ -125,6 +166,7 @@ export class SessionController {
     this.state.transitioning = false;
     this.clearAutomaticCountdown();
     this.audio.stopAll();
+    this.refreshDiagnostics();
     this.ui.stopVisualization();
     this.ui.render(this.state, message);
   }
@@ -158,6 +200,64 @@ export class SessionController {
       this.audio.setMicAmbient(enabled);
     }
     this.ui.render(this.state);
+  }
+
+  setLoopbackVolume(value) {
+    this.state.loopbackVolume = value;
+    this.audio.setLoopbackVolume(value);
+    this.ui.render(this.state);
+  }
+
+  setAmbientVolume(value) {
+    this.state.ambientVolume = value;
+    this.audio.setAmbientVolume(value);
+    this.ui.render(this.state);
+  }
+
+  toggleMicMute() {
+    this.state.micMuted = !this.state.micMuted;
+    this.audio.setMicMuted(this.state.micMuted);
+    this.ui.render(this.state);
+  }
+
+  async playChannelTest(channel) {
+    try {
+      await this.audio.playChannelTest(channel);
+      const label = channel === 'both' ? 'Both channels' : `${channel} channel`;
+      this.ui.announce(`${label} test`);
+    } catch {
+      this.ui.announce('Channel test is unavailable in this browser.');
+    }
+  }
+
+  async setInputDevice(deviceId) {
+    this.state.selectedInputId = deviceId;
+    this.ui.render(this.state);
+    if (
+      this.state.activeMode === 'mic'
+      || this.state.desiredMode === 'mic'
+    ) {
+      await this.requestMode('mic', { force: true });
+    }
+  }
+
+  async chooseOutput() {
+    if (!this.state.outputSelectionSupported || this.state.outputSelecting) return;
+    this.state.outputSelecting = true;
+    this.state.outputError = '';
+    this.ui.render(this.state);
+    try {
+      const device = await this.audio.selectOutput();
+      this.state.outputLabel = device.label || 'Selected output';
+      this.refreshDiagnostics();
+    } catch (error) {
+      this.state.outputError = error?.name === 'NotAllowedError'
+        ? 'Output selection was not granted.'
+        : 'Could not switch the output device.';
+    } finally {
+      this.state.outputSelecting = false;
+      this.ui.render(this.state);
+    }
   }
 
   clearAutomaticCountdown() {

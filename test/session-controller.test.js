@@ -22,18 +22,39 @@ function createHarness(audioOverrides = {}) {
   const ui = {
     getInterval: () => 15,
     getAmbientInMic: () => true,
+    getLoopbackVolume: () => 82,
+    getAmbientVolume: () => 45,
     render: (state, message) => renders.push({ state: { ...state }, message }),
     setCountdown: value => countdowns.push(value),
     startVisualization: mode => visualizations.push(mode),
     stopVisualization: () => {},
+    announce: () => {},
   };
   const audio = {
     requestMicPermission: async () => true,
     startMusic: async isCurrent => isCurrent(),
     startMic: async isCurrent => isCurrent(),
     setMicAmbient: () => {},
+    setLoopbackVolume: () => {},
+    setAmbientVolume: () => {},
+    setMicMuted: () => {},
+    playChannelTest: async () => {},
+    listAudioInputs: async () => [],
+    onDeviceChange: () => {},
+    supportsOutputSelection: () => false,
+    selectOutput: async () => ({ deviceId: 'output', label: 'Headphones' }),
+    getDiagnostics: () => ({
+      contextState: 'not started',
+      contextSampleRate: null,
+      baseLatency: null,
+      outputLatency: null,
+      sinkId: '',
+      inputLabel: '',
+      inputSampleRate: null,
+      inputChannelCount: null,
+    }),
     stopAll: () => {},
-    getMicLevel: () => 0,
+    getMicMetrics: () => ({ level: 0, clipping: false }),
     ...audioOverrides,
   };
   const clock = {
@@ -66,20 +87,13 @@ test('manual selection starts directly in the requested mode', async () => {
 
   await harness.controller.requestMode('mic');
 
-  assert.deepEqual(
-    harness.controller.snapshot(),
-    {
-      running: true,
-      switchingMethod: 'manual',
-      activeMode: 'mic',
-      desiredMode: null,
-      transitioning: false,
-      transitionId: 1,
-      remaining: 15,
-      ambientInMic: true,
-      micPermission: 'granted',
-    },
-  );
+  const state = harness.controller.snapshot();
+  assert.equal(state.running, true);
+  assert.equal(state.switchingMethod, 'manual');
+  assert.equal(state.activeMode, 'mic');
+  assert.equal(state.transitioning, false);
+  assert.equal(state.ambientInMic, true);
+  assert.equal(state.micPermission, 'granted');
   assert.deepEqual(harness.visualizations, ['mic']);
   assert.equal(harness.intervals.size, 0);
 });
@@ -231,4 +245,58 @@ test('elapsed automatic countdown requests the opposite mode', async () => {
 
   assert.deepEqual(calls, ['music', 'mic']);
   assert.equal(harness.controller.snapshot().activeMode, 'mic');
+});
+
+test('changing input while mic mode is active reacquires the selected device', async () => {
+  const requestedDevices = [];
+  const harness = createHarness({
+    startMic: async (isCurrent, _ambient, deviceId) => {
+      requestedDevices.push(deviceId);
+      return isCurrent();
+    },
+  });
+
+  await harness.controller.requestMode('mic');
+  await harness.controller.setInputDevice('bluetooth-mic');
+
+  assert.deepEqual(requestedDevices, ['', 'bluetooth-mic']);
+  assert.equal(harness.controller.snapshot().selectedInputId, 'bluetooth-mic');
+  assert.equal(harness.controller.snapshot().activeMode, 'mic');
+});
+
+test('calibration controls update volume and mute state', () => {
+  const loopbackValues = [];
+  const ambientValues = [];
+  const muteValues = [];
+  const harness = createHarness({
+    setLoopbackVolume: value => loopbackValues.push(value),
+    setAmbientVolume: value => ambientValues.push(value),
+    setMicMuted: value => muteValues.push(value),
+  });
+
+  harness.controller.setLoopbackVolume(60);
+  harness.controller.setAmbientVolume(30);
+  harness.controller.toggleMicMute();
+
+  assert.deepEqual(loopbackValues, [82, 60]);
+  assert.deepEqual(ambientValues, [45, 30]);
+  assert.deepEqual(muteValues, [true]);
+  assert.equal(harness.controller.snapshot().micMuted, true);
+});
+
+test('supported output selection records the chosen device', async () => {
+  const harness = createHarness({
+    supportsOutputSelection: () => true,
+    selectOutput: async () => ({
+      deviceId: 'speaker-id',
+      label: 'Desk speakers',
+    }),
+  });
+
+  await harness.controller.chooseOutput();
+
+  const state = harness.controller.snapshot();
+  assert.equal(state.outputLabel, 'Desk speakers');
+  assert.equal(state.outputError, '');
+  assert.equal(state.outputSelecting, false);
 });

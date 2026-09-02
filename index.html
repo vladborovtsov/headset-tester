@@ -83,6 +83,67 @@
         <button class="start-button" id="startButton" type="button"><span>START TEST</span><b>→</b></button>
       </section>
 
+      <details class="audio-setup" open>
+        <summary>
+          <span><small>AUDIO TOOLS</small> Setup &amp; calibration</span>
+          <span aria-hidden="true">＋</span>
+        </summary>
+        <div class="audio-tools-grid">
+          <section class="tool-block" aria-labelledby="devicesTitle">
+            <h2 id="devicesTitle">Devices</h2>
+            <label class="field-label" for="inputDevice">MICROPHONE INPUT</label>
+            <select id="inputDevice">
+              <option value="">System default</option>
+            </select>
+            <span class="device-warning" id="deviceWarning" hidden>Could not identify this input as a Bluetooth headset. Confirm it in system settings.</span>
+
+            <span class="field-label">AUDIO OUTPUT</span>
+            <div class="output-picker">
+              <button id="chooseOutput" type="button">CHOOSE OUTPUT</button>
+              <span id="outputDevice">System default output</span>
+            </div>
+            <span class="support-note" id="outputSupport"></span>
+          </section>
+
+          <section class="tool-block diagnostics" aria-labelledby="diagnosticsTitle">
+            <h2 id="diagnosticsTitle">Diagnostics</h2>
+            <dl>
+              <div><dt>Permission</dt><dd id="diagPermission">Requesting</dd></div>
+              <div><dt>Input format</dt><dd id="diagInputFormat">Not active</dd></div>
+              <div><dt>Audio engine</dt><dd id="diagContext">Not started</dd></div>
+              <div><dt>Processing latency</dt><dd id="diagLatency">Unavailable</dd></div>
+              <div><dt>Requested mode</dt><dd id="diagMode">Not running</dd></div>
+            </dl>
+          </section>
+
+          <section class="tool-block calibration" aria-labelledby="calibrationTitle">
+            <div class="tool-heading">
+              <h2 id="calibrationTitle">Calibration</h2>
+              <span class="clip-indicator" id="clipIndicator">PEAK OK</span>
+            </div>
+
+            <label class="range-control" for="loopbackVolume">
+              <span>MIC LOOPBACK <output id="loopbackValue">82%</output></span>
+              <input id="loopbackVolume" type="range" min="0" max="100" value="82" />
+            </label>
+            <label class="range-control" for="ambientVolume">
+              <span>HEADSET MUSIC <output id="ambientValue">45%</output></span>
+              <input id="ambientVolume" type="range" min="0" max="100" value="45" />
+            </label>
+
+            <div class="calibration-actions">
+              <div class="channel-tests" role="group" aria-label="Channel test">
+                <button type="button" data-channel="left">LEFT</button>
+                <button type="button" data-channel="both">BOTH</button>
+                <button type="button" data-channel="right">RIGHT</button>
+              </div>
+              <button class="mute-button" id="muteMic" type="button" aria-pressed="false">MUTE MIC</button>
+            </div>
+            <p class="feedback-note">Use headphones. High loopback levels can create feedback with speakers.</p>
+          </section>
+        </div>
+      </details>
+
       <p class="privacy"><span>●</span> Audio stays on this device. Nothing is recorded or uploaded.</p>
     </main>
 

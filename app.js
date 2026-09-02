@@ -12,6 +12,12 @@ ui.bind({
   setSwitchingMethod: method => controller.setSwitchingMethod(method),
   intervalChanged: () => controller.intervalChanged(),
   ambientChanged: enabled => controller.setAmbientInMic(enabled),
+  inputDeviceChanged: deviceId => controller.setInputDevice(deviceId),
+  chooseOutput: () => controller.chooseOutput(),
+  loopbackChanged: value => controller.setLoopbackVolume(value),
+  ambientVolumeChanged: value => controller.setAmbientVolume(value),
+  channelTest: channel => controller.playChannelTest(channel),
+  toggleMicMute: () => controller.toggleMicMute(),
 });
 
 controller.init();

@@ -24,6 +24,23 @@ export class UI {
     this.dialog = root.querySelector('#aboutDialog');
     this.aboutButton = root.querySelector('#aboutButton');
     this.closeDialogButton = root.querySelector('#closeDialog');
+    this.inputDevice = root.querySelector('#inputDevice');
+    this.chooseOutput = root.querySelector('#chooseOutput');
+    this.outputDevice = root.querySelector('#outputDevice');
+    this.outputSupport = root.querySelector('#outputSupport');
+    this.deviceWarning = root.querySelector('#deviceWarning');
+    this.diagPermission = root.querySelector('#diagPermission');
+    this.diagInputFormat = root.querySelector('#diagInputFormat');
+    this.diagContext = root.querySelector('#diagContext');
+    this.diagLatency = root.querySelector('#diagLatency');
+    this.diagMode = root.querySelector('#diagMode');
+    this.loopbackVolume = root.querySelector('#loopbackVolume');
+    this.loopbackValue = root.querySelector('#loopbackValue');
+    this.ambientVolume = root.querySelector('#ambientVolume');
+    this.ambientValue = root.querySelector('#ambientValue');
+    this.channelTestButtons = [...root.querySelectorAll('[data-channel]')];
+    this.muteMic = root.querySelector('#muteMic');
+    this.clipIndicator = root.querySelector('#clipIndicator');
     this.animationFrame = null;
 
     for (let index = 0; index < 46; index++) {
@@ -50,6 +67,26 @@ export class UI {
     );
     this.aboutButton.addEventListener('click', () => this.dialog.showModal());
     this.closeDialogButton.addEventListener('click', () => this.dialog.close());
+    this.inputDevice.addEventListener(
+      'change',
+      () => handlers.inputDeviceChanged(this.inputDevice.value),
+    );
+    this.chooseOutput.addEventListener('click', handlers.chooseOutput);
+    this.loopbackVolume.addEventListener(
+      'input',
+      () => handlers.loopbackChanged(Number(this.loopbackVolume.value)),
+    );
+    this.ambientVolume.addEventListener(
+      'input',
+      () => handlers.ambientVolumeChanged(Number(this.ambientVolume.value)),
+    );
+    this.channelTestButtons.forEach(button => {
+      button.addEventListener(
+        'click',
+        () => handlers.channelTest(button.dataset.channel),
+      );
+    });
+    this.muteMic.addEventListener('click', handlers.toggleMicMute);
   }
 
   getInterval() {
@@ -60,8 +97,20 @@ export class UI {
     return this.ambientInMic.checked;
   }
 
+  getLoopbackVolume() {
+    return Number(this.loopbackVolume.value);
+  }
+
+  getAmbientVolume() {
+    return Number(this.ambientVolume.value);
+  }
+
   setCountdown(text) {
     this.countdown.textContent = text;
+  }
+
+  announce(text) {
+    this.announcement.textContent = text;
   }
 
   statusMarkup(text) {
@@ -121,6 +170,7 @@ export class UI {
     this.selectMic.hidden = !manual;
     this.intervalSelect.disabled = state.running;
     this.ambientInMic.checked = state.ambientInMic;
+    this.ambientVolume.disabled = !state.ambientInMic;
 
     if (manual) {
       this.musicActionLabel.textContent = !state.running
@@ -184,23 +234,117 @@ export class UI {
     } else if (state.running && state.activeMode) {
       this.announcement.textContent = `${this.currentMode.textContent} active`;
     }
+
+    this.renderAudioTools(state);
   }
 
-  startVisualization(mode, getMicLevel) {
+  renderAudioTools(state) {
+    const devicesSignature = state.inputDevices
+      .map(device => `${device.deviceId}:${device.label}`)
+      .join('|');
+    if (this.inputDevice.dataset.signature !== devicesSignature) {
+      this.inputDevice.replaceChildren();
+      const defaultOption = document.createElement('option');
+      defaultOption.value = '';
+      defaultOption.textContent = 'System default';
+      this.inputDevice.append(defaultOption);
+      state.inputDevices.forEach((device, index) => {
+        const option = document.createElement('option');
+        option.value = device.deviceId;
+        option.textContent = device.label || `Microphone ${index + 1}`;
+        this.inputDevice.append(option);
+      });
+      this.inputDevice.dataset.signature = devicesSignature;
+    }
+    this.inputDevice.value = state.selectedInputId;
+    this.inputDevice.disabled = state.micPermission !== 'granted'
+      || state.inputDevices.length === 0;
+
+    const selectedDevice = state.inputDevices.find(
+      device => device.deviceId === state.selectedInputId,
+    );
+    const inputLabel = selectedDevice?.label
+      || state.diagnostics.inputLabel
+      || '';
+    const bluetoothPattern = /airpods|bluetooth|headset|buds|beats|bose|jabra|soundcore|momentum|poly|wh-|wf-/i;
+    this.deviceWarning.hidden = !inputLabel
+      || bluetoothPattern.test(inputLabel);
+
+    this.chooseOutput.disabled = !state.outputSelectionSupported
+      || state.outputSelecting;
+    this.chooseOutput.textContent = state.outputSelecting
+      ? 'CHOOSING…'
+      : 'CHOOSE OUTPUT';
+    this.outputDevice.textContent = state.outputLabel;
+    this.outputSupport.textContent = state.outputError
+      || (state.outputSelectionSupported
+        ? 'Output selection is available in this browser.'
+        : 'Using the system default. Direct output selection is unavailable here.');
+
+    const permissionLabels = {
+      unknown: 'Unknown',
+      requesting: 'Requesting',
+      granted: 'Granted',
+      denied: 'Denied',
+      unavailable: 'Unavailable',
+    };
+    this.diagPermission.textContent = permissionLabels[state.micPermission];
+    const channels = state.diagnostics.inputChannelCount;
+    const inputRate = state.diagnostics.inputSampleRate;
+    this.diagInputFormat.textContent = channels || inputRate
+      ? `${channels || '?'} ch · ${inputRate ? `${inputRate} Hz` : 'rate unknown'}`
+      : 'Not active';
+    this.diagContext.textContent = state.diagnostics.contextSampleRate
+      ? `${state.diagnostics.contextSampleRate} Hz · ${state.diagnostics.contextState}`
+      : state.diagnostics.contextState;
+    const latencies = [
+      state.diagnostics.baseLatency != null
+        ? `${(state.diagnostics.baseLatency * 1000).toFixed(1)} ms base`
+        : '',
+      state.diagnostics.outputLatency != null
+        ? `${(state.diagnostics.outputLatency * 1000).toFixed(1)} ms output`
+        : '',
+    ].filter(Boolean);
+    this.diagLatency.textContent = latencies.join(' · ') || 'Unavailable';
+    this.diagMode.textContent = state.transitioning
+      ? `Switching to ${state.desiredMode === 'mic' ? 'headset' : 'audio'}`
+      : state.activeMode === 'mic'
+        ? 'Headset mode'
+        : state.activeMode === 'music' ? 'Audio mode' : 'Not running';
+
+    this.loopbackVolume.value = state.loopbackVolume;
+    this.loopbackValue.value = `${state.loopbackVolume}%`;
+    this.ambientVolume.value = state.ambientVolume;
+    this.ambientValue.value = `${state.ambientVolume}%`;
+    this.muteMic.classList.toggle('active', state.micMuted);
+    this.muteMic.setAttribute('aria-pressed', String(state.micMuted));
+    this.muteMic.textContent = state.micMuted ? 'UNMUTE MIC' : 'MUTE MIC';
+    if (state.activeMode !== 'mic') this.setClipping(false);
+  }
+
+  setClipping(clipping) {
+    this.clipIndicator.classList.toggle('clipping', clipping);
+    this.clipIndicator.textContent = clipping ? 'CLIPPING' : 'PEAK OK';
+  }
+
+  startVisualization(mode, getMicMetrics) {
     this.stopVisualization();
     if (mode === 'music') this.animateMusic();
-    else this.animateMeter(getMicLevel);
+    else this.animateMeter(getMicMetrics);
   }
 
   stopVisualization() {
     cancelAnimationFrame(this.animationFrame);
     this.meter.style.width = '0';
+    this.setClipping(false);
   }
 
-  animateMeter(getMicLevel) {
-    this.meter.style.width = `${getMicLevel()}%`;
+  animateMeter(getMicMetrics) {
+    const metrics = getMicMetrics();
+    this.meter.style.width = `${metrics.level}%`;
+    this.setClipping(metrics.clipping);
     this.animationFrame = requestAnimationFrame(
-      () => this.animateMeter(getMicLevel),
+      () => this.animateMeter(getMicMetrics),
     );
   }
 
