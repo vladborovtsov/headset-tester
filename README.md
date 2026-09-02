@@ -38,7 +38,8 @@ npm test
 Manual mode is selected by default and lets either mode card start the test or
 request the next profile transition directly. Automatic mode alternates on the
 selected interval.
-Audio mode plays a procedurally generated lo-fi melody and beat; headset mode
+Audio mode plays a procedurally generated melody and beat with switchable lo-fi
+and original dark DMG-era chiptune presets; headset mode
 mirrors the microphone into both browser output channels. Music continues
 quietly in headset mode by default and can be disabled with the **Keep music
 playing** checkbox.

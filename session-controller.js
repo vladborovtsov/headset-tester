@@ -16,6 +16,7 @@ export class SessionController {
       transitionId: 0,
       remaining: this.ui.getInterval(),
       ambientInMic: this.ui.getAmbientInMic(),
+      musicPreset: this.ui.getMusicPreset(),
       micPermission: 'unknown',
       loopbackVolume: this.ui.getLoopbackVolume(),
       ambientVolume: this.ui.getAmbientVolume(),
@@ -31,6 +32,7 @@ export class SessionController {
     };
     this.audio.setLoopbackVolume(this.state.loopbackVolume);
     this.audio.setAmbientVolume(this.state.ambientVolume);
+    this.audio.setMusicPreset(this.state.musicPreset);
     this.countdownTimer = null;
     this.permissionAttempt = null;
   }
@@ -217,6 +219,14 @@ export class SessionController {
     this.state.ambientVolume = value;
     this.audio.setAmbientVolume(value);
     this.ui.render(this.state);
+  }
+
+  setMusicPreset(preset) {
+    if (!['lofi', '8bit'].includes(preset)) return;
+    this.state.musicPreset = preset;
+    this.audio.setMusicPreset(preset);
+    this.ui.render(this.state);
+    this.ui.announce(`${preset === '8bit' ? 'Dark DMG' : 'Lo-fi'} music selected`);
   }
 
   toggleMicMute() {

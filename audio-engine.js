@@ -1,5 +1,7 @@
-const BPM = 78;
-const STEP_DURATION = 60 / BPM / 4;
+const MUSIC_PRESETS = {
+  lofi: { bpm: 78, volume: 0.22, filter: 3600 },
+  '8bit': { bpm: 148, volume: 0.15, filter: 11000 },
+};
 const CHORDS = [
   { notes: [57, 60, 64], bass: 45, next: [1, 2] },
   { notes: [53, 57, 60], bass: 41, next: [2, 3] },
@@ -7,6 +9,20 @@ const CHORDS = [
   { notes: [55, 59, 62], bass: 43, next: [0, 1] },
 ];
 const MELODY = [57, 60, 62, 64, 67, 69, 72, 74];
+const DARK_DMG_CHORDS = [
+  { root: 40, notes: [52, 59, 64] },
+  { root: 36, notes: [48, 55, 60] },
+  { root: 38, notes: [50, 57, 62] },
+  { root: 35, notes: [47, 54, 59] },
+];
+const DARK_DMG_PROGRESSION = [0, 1, 2, 3, 0, 2, 1, 3];
+const DARK_DMG_LEAD = [
+  76, null, 71, 75, 76, 79, 78, null,
+  76, 74, 72, 71, 75, 74, 71, null,
+  64, 67, 71, 72, 71, 69, 67, null,
+  66, 67, 69, 71, 75, 74, 71, null,
+];
+const DARK_DMG_RIFF_STEPS = new Set([0, 2, 3, 4, 6, 7, 8, 10, 11, 12, 14, 15]);
 
 export class AudioEngine {
   constructor(options = {}) {
@@ -18,10 +34,13 @@ export class AudioEngine {
     this.context = null;
     this.musicSchedulerTimer = null;
     this.musicPlaying = false;
+    this.musicPreset = 'lofi';
+    this.musicVoiceGain = null;
     this.musicLayer = null;
     this.currentMusicVolume = 0;
     this.loopbackVolume = 0.82;
-    this.ambientVolume = 0.1;
+    this.ambientLevel = 0.45;
+    this.ambientVolume = MUSIC_PRESETS.lofi.volume * this.ambientLevel;
     this.micMuted = false;
     this.channelTestTimer = null;
     this.diagnosticsCallback = null;
@@ -46,7 +65,7 @@ export class AudioEngine {
     this.musicCompressor = this.context.createDynamicsCompressor();
     this.musicGain.gain.value = 0;
     this.musicFilter.type = 'lowpass';
-    this.musicFilter.frequency.value = 3600;
+    this.musicFilter.frequency.value = MUSIC_PRESETS[this.musicPreset].filter;
     this.musicFilter.Q.value = 0.4;
     this.musicCompressor.threshold.value = -20;
     this.musicCompressor.knee.value = 18;
@@ -116,8 +135,28 @@ export class AudioEngine {
     if (!isCurrent()) return false;
 
     this.stopMic();
-    this.startMusicLayer(0.22, true, 'full');
+    this.startMusicLayer(this.fullMusicVolume(), true, 'full');
     return true;
+  }
+
+  fullMusicVolume() {
+    return MUSIC_PRESETS[this.musicPreset].volume;
+  }
+
+  stepDuration() {
+    return 60 / MUSIC_PRESETS[this.musicPreset].bpm / 4;
+  }
+
+  resetMusicVoiceBus() {
+    const previousBus = this.musicVoiceGain;
+    const now = this.context.currentTime;
+    this.musicVoiceGain = this.context.createGain();
+    this.musicVoiceGain.gain.value = 1;
+    this.musicVoiceGain.connect(this.musicGain);
+    if (!previousBus) return;
+    previousBus.gain.cancelScheduledValues(now);
+    previousBus.gain.setTargetAtTime(0, now, 0.025);
+    setTimeout(() => this.disconnectNode(previousBus), 180);
   }
 
   startMusicLayer(volume, restart = false, layer = this.musicLayer) {
@@ -128,6 +167,7 @@ export class AudioEngine {
       this.chordIndex = Math.floor(Math.random() * CHORDS.length);
       this.melodyIndex = 1 + Math.floor(Math.random() * (MELODY.length - 3));
       this.nextStepTime = this.context.currentTime + 0.06;
+      this.resetMusicVoiceBus();
       this.runMusicScheduler();
     }
     this.musicLayer = layer;
@@ -207,9 +247,29 @@ export class AudioEngine {
   }
 
   setAmbientVolume(percent) {
-    this.ambientVolume = 0.22 * Math.max(0, Math.min(1, percent / 100));
+    this.ambientLevel = Math.max(0, Math.min(1, percent / 100));
+    this.ambientVolume = this.fullMusicVolume() * this.ambientLevel;
     if (this.musicLayer === 'ambient') {
       this.startMusicLayer(this.ambientVolume, false, 'ambient');
+    }
+  }
+
+  setMusicPreset(preset) {
+    if (!MUSIC_PRESETS[preset] || preset === this.musicPreset) return;
+    this.musicPreset = preset;
+    this.ambientVolume = this.fullMusicVolume() * this.ambientLevel;
+    if (this.context) {
+      this.musicFilter.frequency.setTargetAtTime(
+        MUSIC_PRESETS[preset].filter,
+        this.context.currentTime,
+        0.04,
+      );
+    }
+    if (this.musicPlaying) {
+      const volume = this.musicLayer === 'ambient'
+        ? this.ambientVolume
+        : this.fullMusicVolume();
+      this.startMusicLayer(volume, true, this.musicLayer);
     }
   }
 
@@ -428,7 +488,7 @@ export class AudioEngine {
       .connect(filter)
       .connect(envelope)
       .connect(panner)
-      .connect(this.musicGain);
+      .connect(this.musicVoiceGain || this.musicGain);
     oscillator.start(time);
     oscillator.stop(time + duration + 0.05);
   }
@@ -442,7 +502,10 @@ export class AudioEngine {
     filter.frequency.value = highpass;
     envelope.gain.setValueAtTime(volume, time);
     envelope.gain.exponentialRampToValueAtTime(0.0001, time + duration);
-    source.connect(filter).connect(envelope).connect(this.musicGain);
+    source
+      .connect(filter)
+      .connect(envelope)
+      .connect(this.musicVoiceGain || this.musicGain);
     source.start(time);
     source.stop(time + duration);
   }
@@ -455,14 +518,16 @@ export class AudioEngine {
     oscillator.frequency.exponentialRampToValueAtTime(43, time + 0.22);
     envelope.gain.setValueAtTime(0.32, time);
     envelope.gain.exponentialRampToValueAtTime(0.0001, time + 0.28);
-    oscillator.connect(envelope).connect(this.musicGain);
+    oscillator
+      .connect(envelope)
+      .connect(this.musicVoiceGain || this.musicGain);
     oscillator.start(time);
     oscillator.stop(time + 0.3);
   }
 
   scheduleChord(time, chord) {
     chord.notes.forEach((note, index) => {
-      this.scheduleTone(note, time, STEP_DURATION * 14, 0.026, {
+      this.scheduleTone(note, time, this.stepDuration() * 14, 0.026, {
         type: index === 1 ? 'sine' : 'triangle',
         filter: 1050,
         detune: (Math.random() - 0.5) * 7,
@@ -471,7 +536,7 @@ export class AudioEngine {
     });
   }
 
-  scheduleStep(step, time) {
+  scheduleLofiStep(step, time) {
     const position = step % 16;
     if (position === 0) {
       if (step > 0) {
@@ -512,7 +577,7 @@ export class AudioEngine {
       this.scheduleTone(
         CHORDS[this.chordIndex].bass,
         time,
-        STEP_DURATION * 3.2,
+        this.stepDuration() * 3.2,
         0.075,
         { type: 'sine', filter: 520 },
       );
@@ -527,7 +592,7 @@ export class AudioEngine {
       this.scheduleTone(
         MELODY[this.melodyIndex],
         time,
-        STEP_DURATION * (1.2 + Math.random() * 1.8),
+        this.stepDuration() * (1.2 + Math.random() * 1.8),
         0.055,
         {
           type: Math.random() > 0.35 ? 'triangle' : 'sine',
@@ -539,11 +604,89 @@ export class AudioEngine {
     }
   }
 
+  schedule8BitStep(step, time) {
+    const position = step % 16;
+    const bar = Math.floor(step / 16);
+    const chord = DARK_DMG_CHORDS[
+      DARK_DMG_PROGRESSION[bar % DARK_DMG_PROGRESSION.length]
+    ];
+    const leadNote = DARK_DMG_LEAD[step % DARK_DMG_LEAD.length];
+
+    if (leadNote != null) {
+      this.scheduleTone(
+        leadNote,
+        time,
+        this.stepDuration() * (position === 0 || position === 8 ? 2.4 : 1.15),
+        0.038,
+        {
+          type: 'square',
+          filter: 9600,
+          pan: position < 8 ? -0.18 : 0.18,
+        },
+      );
+    }
+
+    if (DARK_DMG_RIFF_STEPS.has(position)) {
+      this.scheduleTone(
+        chord.root,
+        time,
+        this.stepDuration() * 0.7,
+        position === 0 || position === 8 ? 0.075 : 0.052,
+        { type: 'square', filter: 1050 },
+      );
+    }
+
+    if (position === 0 || position === 8) {
+      [chord.root + 12, chord.root + 19].forEach((note, index) => {
+        this.scheduleTone(
+          note,
+          time,
+          this.stepDuration() * 3.2,
+          0.026,
+          {
+            type: 'square',
+            filter: 3400,
+            pan: index === 0 ? -0.28 : 0.28,
+          },
+        );
+      });
+    }
+
+    if ([1, 5, 9, 13].includes(position)) {
+      const arpNote = chord.notes[(position >> 2) % chord.notes.length] + 12;
+      this.scheduleTone(
+        arpNote,
+        time,
+        this.stepDuration() * 0.72,
+        0.022,
+        {
+          type: 'square',
+          filter: 7200,
+          pan: position < 8 ? 0.3 : -0.3,
+        },
+      );
+    }
+
+    if ([0, 3, 8, 11].includes(position)) this.scheduleKick(time);
+    if (position === 4 || position === 12) {
+      this.scheduleNoise(time, 0.11, 0.065, 1250);
+      this.scheduleNoise(time + 0.025, 0.055, 0.024, 4200);
+    }
+    if (position % 2 === 1) {
+      this.scheduleNoise(time, 0.022, 0.014, 6800);
+    }
+  }
+
+  scheduleStep(step, time) {
+    if (this.musicPreset === '8bit') this.schedule8BitStep(step, time);
+    else this.scheduleLofiStep(step, time);
+  }
+
   runMusicScheduler() {
     if (!this.musicPlaying || !this.context) return;
     while (this.nextStepTime < this.context.currentTime + 0.2) {
       this.scheduleStep(this.sequencerStep, this.nextStepTime);
-      this.nextStepTime += STEP_DURATION;
+      this.nextStepTime += this.stepDuration();
       this.sequencerStep++;
     }
     this.musicSchedulerTimer = setTimeout(

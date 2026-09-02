@@ -20,6 +20,7 @@ export class UI {
     this.visualizer = root.querySelector('#visualizer');
     this.musicActionLabel = root.querySelector('#musicActionLabel');
     this.micActionLabel = root.querySelector('#micActionLabel');
+    this.musicPresetButtons = [...root.querySelectorAll('[data-music-preset]')];
     this.ambientInMic = root.querySelector('#ambientInMic');
     this.dialog = root.querySelector('#aboutDialog');
     this.aboutButton = root.querySelector('#aboutButton');
@@ -96,6 +97,12 @@ export class UI {
       );
     });
     this.muteMic.addEventListener('click', handlers.toggleMicMute);
+    this.musicPresetButtons.forEach(button => {
+      button.addEventListener(
+        'click',
+        () => handlers.musicPresetChanged(button.dataset.musicPreset),
+      );
+    });
   }
 
   bindModeCard(card, mode, selectMode) {
@@ -135,6 +142,11 @@ export class UI {
 
   getAmbientVolume() {
     return Number(this.ambientVolume.value);
+  }
+
+  getMusicPreset() {
+    return this.musicPresetButtons.find(button => button.classList.contains('selected'))
+      ?.dataset.musicPreset || 'lofi';
   }
 
   setCountdown(text) {
@@ -203,6 +215,11 @@ export class UI {
     this.intervalSelect.disabled = state.running;
     this.ambientInMic.checked = state.ambientInMic;
     this.ambientVolume.disabled = !state.ambientInMic;
+    this.musicPresetButtons.forEach(button => {
+      const selected = button.dataset.musicPreset === state.musicPreset;
+      button.classList.toggle('selected', selected);
+      button.setAttribute('aria-pressed', String(selected));
+    });
 
     if (manual) {
       this.musicActionLabel.textContent = !state.running

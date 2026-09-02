@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#111714" />
     <title>Headset Hop — Bluetooth profile tester</title>
-    <link rel="stylesheet" href="styles.css?v=20260902-expanded-diagnostics" />
+    <link rel="stylesheet" href="styles.css?v=20260902-dark-dmg" />
   </head>
   <body>
     <main class="shell">
@@ -31,7 +31,14 @@
           </div>
           <div class="mode-icon" aria-hidden="true">♪</div>
           <h2>Audio mode</h2>
-          <p>High-fidelity A2DP playback with a generated lo-fi melody and beat.</p>
+          <p>High-fidelity A2DP playback with a generated melody and beat.</p>
+          <div class="music-preset">
+            <span class="label">MUSIC STYLE</span>
+            <div class="segmented" role="group" aria-label="Music style">
+              <button class="selected" type="button" data-music-preset="lofi" aria-pressed="true">LO-FI</button>
+              <button type="button" data-music-preset="8bit" aria-pressed="false">DARK DMG</button>
+            </div>
+          </div>
           <div class="mode-select" id="musicAction" aria-hidden="true"><span id="musicActionLabel">START AUDIO</span> <span>↗</span></div>
           <div class="visualizer" id="visualizer" aria-hidden="true"></div>
         </div>
@@ -165,6 +172,6 @@
       <p>Manual mode lets you request either transition yourself. The microphone is duplicated into both browser output channels, although the Bluetooth call profile may still be mono.</p>
       <p>For best results, select your Bluetooth headset for both input and output in your system settings. Use headphones to prevent feedback.</p>
     </dialog>
-    <script type="module" src="./app.js?v=20260902-expanded-diagnostics"></script>
+    <script type="module" src="./app.js?v=20260902-dark-dmg"></script>
   </body>
 </html>

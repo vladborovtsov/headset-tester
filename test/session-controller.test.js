@@ -23,6 +23,7 @@ function createHarness(audioOverrides = {}) {
   const ui = {
     getInterval: () => 15,
     getAmbientInMic: () => true,
+    getMusicPreset: () => 'lofi',
     getLoopbackVolume: () => 82,
     getAmbientVolume: () => 45,
     render: (state, message) => renders.push({ state: { ...state }, message }),
@@ -36,6 +37,7 @@ function createHarness(audioOverrides = {}) {
     startMusic: async isCurrent => isCurrent(),
     startMic: async isCurrent => isCurrent(),
     setMicAmbient: () => {},
+    setMusicPreset: () => {},
     setLoopbackVolume: () => {},
     setAmbientVolume: () => {},
     setMicMuted: () => {},
@@ -149,6 +151,35 @@ test('ambient music is enabled by default and follows checkbox changes', async (
   harness.controller.setAmbientInMic(false);
   assert.equal(harness.controller.snapshot().ambientInMic, false);
   assert.deepEqual(ambientChanges, [true, false]);
+});
+
+test('music preset changes update controller state and the audio engine', () => {
+  const presetChanges = [];
+  const harness = createHarness({
+    setMusicPreset: preset => presetChanges.push(preset),
+  });
+
+  harness.controller.setMusicPreset('8bit');
+  harness.controller.setMusicPreset('unknown');
+
+  assert.deepEqual(presetChanges, ['lofi', '8bit']);
+  assert.equal(harness.controller.snapshot().musicPreset, '8bit');
+});
+
+test('audio engine dispatches steps to the selected music preset', () => {
+  const engine = new AudioEngine();
+  const scheduled = [];
+  engine.scheduleLofiStep = () => scheduled.push('lofi');
+  engine.schedule8BitStep = () => scheduled.push('8bit');
+
+  engine.scheduleStep(0, 0);
+  engine.setMusicPreset('8bit');
+  engine.scheduleStep(1, 0.1);
+
+  assert.deepEqual(scheduled, ['lofi', '8bit']);
+  assert.equal(engine.musicPreset, '8bit');
+  assert.equal(engine.fullMusicVolume(), 0.15);
+  assert.equal(engine.stepDuration(), 60 / 148 / 4);
 });
 
 test('permission priming releases its temporary microphone stream', async () => {
