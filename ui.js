@@ -30,9 +30,18 @@ export class UI {
     this.outputSupport = root.querySelector('#outputSupport');
     this.deviceWarning = root.querySelector('#deviceWarning');
     this.diagPermission = root.querySelector('#diagPermission');
+    this.diagInputDevice = root.querySelector('#diagInputDevice');
+    this.diagTrack = root.querySelector('#diagTrack');
     this.diagInputFormat = root.querySelector('#diagInputFormat');
+    this.diagProcessing = root.querySelector('#diagProcessing');
+    this.diagInputLatency = root.querySelector('#diagInputLatency');
+    this.diagRequest = root.querySelector('#diagRequest');
+    this.diagCapabilities = root.querySelector('#diagCapabilities');
     this.diagContext = root.querySelector('#diagContext');
+    this.diagOutputChannels = root.querySelector('#diagOutputChannels');
     this.diagLatency = root.querySelector('#diagLatency');
+    this.diagPairing = root.querySelector('#diagPairing');
+    this.diagApiSupport = root.querySelector('#diagApiSupport');
     this.diagMode = root.querySelector('#diagMode');
     this.loopbackVolume = root.querySelector('#loopbackVolume');
     this.loopbackValue = root.querySelector('#loopbackValue');
@@ -339,14 +348,66 @@ export class UI {
       unavailable: 'Unavailable',
     };
     this.diagPermission.textContent = permissionLabels[state.micPermission];
+    this.diagInputDevice.textContent = inputLabel
+      ? state.inputDevices.length
+        ? `${inputLabel} · ${state.inputDevices.length} visible`
+        : inputLabel
+      : state.inputDevices.length
+        ? `${state.inputDevices.length} microphone${state.inputDevices.length === 1 ? '' : 's'} visible`
+        : 'Not reported';
+    this.diagTrack.textContent = !state.diagnostics.trackState
+      || state.diagnostics.trackState === 'inactive'
+      ? 'Not active'
+      : [
+        state.diagnostics.trackState,
+        typeof state.diagnostics.trackMuted === 'boolean'
+          ? state.diagnostics.trackMuted ? 'source muted' : 'source flowing'
+          : '',
+        typeof state.diagnostics.trackEnabled === 'boolean'
+          ? state.diagnostics.trackEnabled ? 'track enabled' : 'track disabled'
+          : '',
+        state.diagnostics.streamActive === false ? 'stream inactive' : '',
+      ].filter(Boolean).join(' · ');
     const channels = state.diagnostics.inputChannelCount;
     const inputRate = state.diagnostics.inputSampleRate;
-    this.diagInputFormat.textContent = channels || inputRate
-      ? `${channels || '?'} ch · ${inputRate ? `${inputRate} Hz` : 'rate unknown'}`
+    const sampleSize = state.diagnostics.inputSampleSize;
+    this.diagInputFormat.textContent = channels || inputRate || sampleSize
+      ? [
+        channels ? `${channels} ch` : 'channels unknown',
+        inputRate ? `${inputRate} Hz` : 'rate unknown',
+        sampleSize ? `${sampleSize}-bit` : '',
+      ].filter(Boolean).join(' · ')
       : 'Not active';
+    const processing = [
+      this.formatToggle('Echo', state.diagnostics.echoCancellation),
+      this.formatToggle('Noise', state.diagnostics.noiseSuppression),
+      this.formatToggle('AGC', state.diagnostics.autoGainControl),
+      this.formatToggle('Voice isolation', state.diagnostics.voiceIsolation),
+    ].filter(Boolean);
+    this.diagProcessing.textContent = processing.join(' · ') || 'Not reported';
+    const inputDetails = [
+      state.diagnostics.inputLatency != null
+        ? `${(state.diagnostics.inputLatency * 1000).toFixed(1)} ms target`
+        : '',
+      state.diagnostics.inputVolume != null
+        ? `${Math.round(state.diagnostics.inputVolume * 100)}% source volume`
+        : '',
+    ].filter(Boolean);
+    this.diagInputLatency.textContent = inputDetails.join(' · ') || 'Not reported';
+    this.diagRequest.textContent = this.formatRequestedCapture(
+      state.diagnostics.constraints,
+    );
+    this.diagCapabilities.textContent = this.formatCapabilities(
+      state.diagnostics.capabilities,
+    );
     this.diagContext.textContent = state.diagnostics.contextSampleRate
       ? `${state.diagnostics.contextSampleRate} Hz · ${state.diagnostics.contextState}`
       : state.diagnostics.contextState;
+    const outputChannels = state.diagnostics.outputChannelCount;
+    const maxOutputChannels = state.diagnostics.maxOutputChannelCount;
+    this.diagOutputChannels.textContent = outputChannels || maxOutputChannels
+      ? `${outputChannels || '?'} current · ${maxOutputChannels || '?'} max`
+      : 'Not active';
     const latencies = [
       state.diagnostics.baseLatency != null
         ? `${(state.diagnostics.baseLatency * 1000).toFixed(1)} ms base`
@@ -356,6 +417,27 @@ export class UI {
         : '',
     ].filter(Boolean);
     this.diagLatency.textContent = latencies.join(' · ') || 'Unavailable';
+    const inputGroupId = state.diagnostics.inputGroupId
+      || selectedDevice?.groupId
+      || '';
+    this.diagPairing.textContent = inputGroupId && state.outputGroupId
+      ? inputGroupId === state.outputGroupId
+        ? 'Same physical device group'
+        : 'Separate device groups'
+      : 'Not reported by this browser';
+    this.diagApiSupport.textContent = [
+      state.diagnostics.secureContext === true
+        ? 'Secure context'
+        : state.diagnostics.secureContext === false
+          ? 'Insecure context'
+          : 'Context security unknown',
+      state.diagnostics.mediaDevicesSupported ? 'Capture' : 'No capture',
+      Object.keys(state.diagnostics.supportedConstraints || {}).length
+        ? 'Track constraints'
+        : '',
+      state.diagnostics.deviceChangeSupported ? 'Hot-plug events' : '',
+      state.outputSelectionSupported ? 'Output routing' : '',
+    ].filter(Boolean).join(' · ');
     this.diagMode.textContent = state.transitioning
       ? `Switching to ${state.desiredMode === 'mic' ? 'headset' : 'audio'}`
       : state.activeMode === 'mic'
@@ -370,6 +452,65 @@ export class UI {
     this.muteMic.setAttribute('aria-pressed', String(state.micMuted));
     this.muteMic.textContent = state.micMuted ? 'UNMUTE MIC' : 'MUTE MIC';
     if (state.activeMode !== 'mic') this.setClipping(false);
+  }
+
+  formatToggle(label, value) {
+    if (typeof value !== 'boolean') return '';
+    return `${label} ${value ? 'on' : 'off'}`;
+  }
+
+  constraintValue(value) {
+    if (value == null) return null;
+    if (typeof value !== 'object') return value;
+    return value.exact ?? value.ideal ?? null;
+  }
+
+  formatRequestedCapture(constraints = {}) {
+    const channelCount = this.constraintValue(constraints.channelCount);
+    const values = [
+      channelCount != null ? `${channelCount} ch` : '',
+      this.formatToggle('Echo', this.constraintValue(constraints.echoCancellation)),
+      this.formatToggle('Noise', this.constraintValue(constraints.noiseSuppression)),
+      this.formatToggle('AGC', this.constraintValue(constraints.autoGainControl)),
+    ].filter(Boolean);
+    return values.join(' · ') || 'Not active';
+  }
+
+  formatCapabilityRange(range, formatter) {
+    if (range == null) return '';
+    if (Array.isArray(range)) {
+      return range.length ? range.map(formatter).join('/') : '';
+    }
+    if (typeof range === 'object') {
+      if (range.min == null && range.max == null) return '';
+      const minimum = range.min ?? range.max;
+      const maximum = range.max ?? range.min;
+      if (minimum === maximum) return formatter(minimum);
+      return `${formatter(minimum)}–${formatter(maximum)}`;
+    }
+    return formatter(range);
+  }
+
+  formatCapabilities(capabilities = {}) {
+    const values = [
+      this.formatCapabilityRange(
+        capabilities.channelCount,
+        value => `${value} ch`,
+      ),
+      this.formatCapabilityRange(
+        capabilities.sampleRate,
+        value => `${Math.round(value / 100) / 10} kHz`,
+      ),
+      this.formatCapabilityRange(
+        capabilities.sampleSize,
+        value => `${value}-bit`,
+      ),
+      this.formatCapabilityRange(
+        capabilities.latency,
+        value => `${(value * 1000).toFixed(1)} ms`,
+      ),
+    ].filter(Boolean);
+    return values.join(' · ') || 'Not reported';
   }
 
   setClipping(clipping) {

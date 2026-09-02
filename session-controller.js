@@ -25,6 +25,7 @@ export class SessionController {
       outputSelectionSupported: this.audio.supportsOutputSelection(),
       outputSelecting: false,
       outputLabel: 'System default output',
+      outputGroupId: '',
       outputError: '',
       diagnostics: this.audio.getDiagnostics(),
     };
@@ -36,6 +37,10 @@ export class SessionController {
 
   init() {
     this.audio.onDeviceChange(() => this.refreshInputDevices());
+    this.audio.onDiagnosticsChange?.(() => {
+      this.refreshDiagnostics();
+      this.ui.render(this.state);
+    });
     this.ui.render(this.state);
     this.permissionAttempt = this.requestInitialMicPermission();
     return this.permissionAttempt;
@@ -249,6 +254,7 @@ export class SessionController {
     try {
       const device = await this.audio.selectOutput();
       this.state.outputLabel = device.label || 'Selected output';
+      this.state.outputGroupId = device.groupId || '';
       this.refreshDiagnostics();
     } catch (error) {
       this.state.outputError = error?.name === 'NotAllowedError'

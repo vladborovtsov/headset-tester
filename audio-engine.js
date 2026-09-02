@@ -24,6 +24,7 @@ export class AudioEngine {
     this.ambientVolume = 0.1;
     this.micMuted = false;
     this.channelTestTimer = null;
+    this.diagnosticsCallback = null;
     this.nextStepTime = 0;
     this.sequencerStep = 0;
     this.chordIndex = 0;
@@ -170,6 +171,11 @@ export class AudioEngine {
     }
 
     this.stream = pendingStream;
+    const track = this.stream.getAudioTracks()[0];
+    ['mute', 'unmute', 'ended'].forEach(eventName => {
+      track?.addEventListener?.(eventName, () => this.emitDiagnosticsChange());
+    });
+    this.stream.addEventListener?.('inactive', () => this.emitDiagnosticsChange());
     this.micSource = this.context.createMediaStreamSource(this.stream);
     this.analyser = this.context.createAnalyser();
     this.analyser.fftSize = 256;
@@ -274,7 +280,11 @@ export class AudioEngine {
     const device = await this.mediaDevices.selectAudioOutput();
     this.ensureContext();
     await this.context.setSinkId(device.deviceId);
-    return { deviceId: device.deviceId, label: device.label };
+    return {
+      deviceId: device.deviceId,
+      groupId: device.groupId || '',
+      label: device.label,
+    };
   }
 
   async listAudioInputs() {
@@ -282,27 +292,71 @@ export class AudioEngine {
     const devices = await this.mediaDevices.enumerateDevices();
     return devices
       .filter(device => device.kind === 'audioinput')
-      .map(device => ({ deviceId: device.deviceId, label: device.label }));
+      .map(device => ({
+        deviceId: device.deviceId,
+        groupId: device.groupId || '',
+        label: device.label,
+      }));
   }
 
   onDeviceChange(callback) {
     this.mediaDevices?.addEventListener?.('devicechange', callback);
   }
 
+  onDiagnosticsChange(callback) {
+    this.diagnosticsCallback = callback;
+  }
+
+  emitDiagnosticsChange() {
+    this.diagnosticsCallback?.();
+  }
+
   getDiagnostics() {
     const track = this.stream?.getAudioTracks?.()[0];
-    const settings = track?.getSettings?.() || {};
+    let settings = {};
+    let capabilities = {};
+    let constraints = {};
+    let supportedConstraints = {};
+    try {
+      settings = track?.getSettings?.() || {};
+      capabilities = track?.getCapabilities?.() || {};
+      constraints = track?.getConstraints?.() || {};
+      supportedConstraints = this.mediaDevices?.getSupportedConstraints?.() || {};
+    } catch {
+      // Some browsers expose these methods but withhold individual values.
+    }
+    const destination = this.context?.destination;
     return {
       contextState: this.context?.state || 'not started',
       contextSampleRate: this.context?.sampleRate || null,
       baseLatency: this.context?.baseLatency ?? null,
       outputLatency: this.context?.outputLatency ?? null,
+      outputChannelCount: destination?.channelCount || null,
+      maxOutputChannelCount: destination?.maxChannelCount || null,
       sinkId: typeof this.context?.sinkId === 'string'
         ? this.context.sinkId
         : '',
       inputLabel: track?.label || '',
+      inputGroupId: settings.groupId || '',
       inputSampleRate: settings.sampleRate || null,
+      inputSampleSize: settings.sampleSize || null,
       inputChannelCount: settings.channelCount || null,
+      inputLatency: settings.latency ?? null,
+      inputVolume: settings.volume ?? null,
+      echoCancellation: settings.echoCancellation ?? null,
+      noiseSuppression: settings.noiseSuppression ?? null,
+      autoGainControl: settings.autoGainControl ?? null,
+      voiceIsolation: settings.voiceIsolation ?? null,
+      trackState: track?.readyState || 'inactive',
+      trackEnabled: track?.enabled ?? null,
+      trackMuted: track?.muted ?? null,
+      streamActive: this.stream?.active ?? null,
+      capabilities,
+      constraints,
+      supportedConstraints,
+      deviceChangeSupported: Boolean(this.mediaDevices?.addEventListener),
+      mediaDevicesSupported: Boolean(this.mediaDevices?.getUserMedia),
+      secureContext: globalThis.isSecureContext ?? null,
     };
   }
 

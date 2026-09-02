@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { AudioEngine } from '../audio-engine.js';
 import { SessionController } from '../session-controller.js';
+import { UI } from '../ui.js';
 
 function deferred() {
   let resolve;
@@ -166,6 +167,83 @@ test('permission priming releases its temporary microphone stream', async () => 
   assert.equal(engine.stream, null);
 });
 
+test('audio diagnostics report active settings, capabilities, and output capacity', () => {
+  const track = {
+    label: 'Bluetooth headset',
+    readyState: 'live',
+    enabled: true,
+    muted: false,
+    getSettings: () => ({
+      groupId: 'headset-group',
+      sampleRate: 16_000,
+      sampleSize: 16,
+      channelCount: 1,
+      latency: 0.02,
+      echoCancellation: false,
+      noiseSuppression: false,
+      autoGainControl: false,
+    }),
+    getCapabilities: () => ({
+      channelCount: { min: 1, max: 2 },
+      sampleRate: { min: 8_000, max: 48_000 },
+    }),
+    getConstraints: () => ({ channelCount: 1 }),
+  };
+  const engine = new AudioEngine({
+    mediaDevices: {
+      getUserMedia: () => {},
+      getSupportedConstraints: () => ({ channelCount: true }),
+      addEventListener: () => {},
+    },
+  });
+  engine.stream = {
+    active: true,
+    getAudioTracks: () => [track],
+  };
+  engine.context = {
+    state: 'running',
+    sampleRate: 48_000,
+    baseLatency: 0.01,
+    outputLatency: 0.03,
+    sinkId: 'output-id',
+    destination: { channelCount: 2, maxChannelCount: 2 },
+  };
+
+  const diagnostics = engine.getDiagnostics();
+
+  assert.equal(diagnostics.inputLabel, 'Bluetooth headset');
+  assert.equal(diagnostics.inputSampleRate, 16_000);
+  assert.equal(diagnostics.inputSampleSize, 16);
+  assert.equal(diagnostics.inputLatency, 0.02);
+  assert.equal(diagnostics.trackState, 'live');
+  assert.equal(diagnostics.streamActive, true);
+  assert.deepEqual(diagnostics.capabilities.channelCount, { min: 1, max: 2 });
+  assert.equal(diagnostics.outputChannelCount, 2);
+  assert.equal(diagnostics.maxOutputChannelCount, 2);
+});
+
+test('diagnostic formatters distinguish requested values and capability ranges', () => {
+  const ui = Object.create(UI.prototype);
+
+  assert.equal(
+    ui.formatRequestedCapture({
+      channelCount: 1,
+      echoCancellation: false,
+      noiseSuppression: false,
+      autoGainControl: false,
+    }),
+    '1 ch · Echo off · Noise off · AGC off',
+  );
+  assert.equal(
+    ui.formatCapabilities({
+      channelCount: { min: 1, max: 2 },
+      sampleRate: { min: 8_000, max: 48_000 },
+      sampleSize: { min: 16, max: 24 },
+    }),
+    '1 ch–2 ch · 8 kHz–48 kHz · 16-bit–24-bit',
+  );
+});
+
 test('automatic countdown starts only after audio transition completes', async () => {
   const transition = deferred();
   const harness = createHarness({
@@ -291,6 +369,7 @@ test('supported output selection records the chosen device', async () => {
     supportsOutputSelection: () => true,
     selectOutput: async () => ({
       deviceId: 'speaker-id',
+      groupId: 'desk-group',
       label: 'Desk speakers',
     }),
   });
@@ -299,6 +378,7 @@ test('supported output selection records the chosen device', async () => {
 
   const state = harness.controller.snapshot();
   assert.equal(state.outputLabel, 'Desk speakers');
+  assert.equal(state.outputGroupId, 'desk-group');
   assert.equal(state.outputError, '');
   assert.equal(state.outputSelecting, false);
 });

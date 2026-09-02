@@ -64,7 +64,7 @@ select { border:0; border-bottom:1px solid #9da49d; padding:0 0 5px; background:
 .audio-setup summary small { margin-right:14px; color:#6a746e; font:500 10px var(--mono); letter-spacing:.14em; }
 .audio-setup[open] summary > span:last-child { transform:rotate(45deg); }
 .audio-setup summary > span:last-child { font-size:22px; transition:transform .2s; }
-.audio-tools-grid { display:grid; grid-template-columns:1.05fr .9fr 1.2fr; gap:0; border-top:1px solid #c7cac4; }
+.audio-tools-grid { display:grid; grid-template-columns:1fr 1.25fr 1.1fr; gap:0; border-top:1px solid #c7cac4; }
 .tool-block { min-width:0; padding:25px 26px 28px; border-right:1px solid #c7cac4; }
 .tool-block:last-child { border-right:0; }
 .tool-block h2 { margin:0 0 20px; font-size:17px; letter-spacing:-.02em; }
@@ -79,7 +79,8 @@ select { border:0; border-bottom:1px solid #9da49d; padding:0 0 5px; background:
 .diagnostics dl { margin:0; }
 .diagnostics dl div { display:flex; justify-content:space-between; gap:16px; padding:8px 0; border-bottom:1px solid #d3d5d0; }
 .diagnostics dt { color:#737c76; font:9px var(--mono); text-transform:uppercase; }
-.diagnostics dd { margin:0; font-size:11px; text-align:right; }
+.diagnostics dd { min-width:0; margin:0; overflow-wrap:anywhere; font-size:11px; text-align:right; }
+.diagnostic-limit { margin:16px 0 0!important; color:#737c76!important; font-size:10px!important; line-height:1.5!important; }
 .tool-heading { display:flex; align-items:center; justify-content:space-between; }
 .tool-heading h2 { margin-bottom:0; }
 .clip-indicator { color:#4c8866; font:500 9px var(--mono); letter-spacing:.08em; }

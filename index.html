@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#111714" />
     <title>Headset Hop — Bluetooth profile tester</title>
-    <link rel="stylesheet" href="styles.css?v=20260902-manual-default" />
+    <link rel="stylesheet" href="styles.css?v=20260902-expanded-diagnostics" />
   </head>
   <body>
     <main class="shell">
@@ -109,11 +109,21 @@
             <h2 id="diagnosticsTitle">Diagnostics</h2>
             <dl>
               <div><dt>Permission</dt><dd id="diagPermission">Requesting</dd></div>
+              <div><dt>Input device</dt><dd id="diagInputDevice">Not reported</dd></div>
+              <div><dt>Track health</dt><dd id="diagTrack">Not active</dd></div>
               <div><dt>Input format</dt><dd id="diagInputFormat">Not active</dd></div>
+              <div><dt>Input processing</dt><dd id="diagProcessing">Not active</dd></div>
+              <div><dt>Input latency</dt><dd id="diagInputLatency">Not reported</dd></div>
+              <div><dt>Requested capture</dt><dd id="diagRequest">Not active</dd></div>
+              <div><dt>Mic capabilities</dt><dd id="diagCapabilities">Not reported</dd></div>
               <div><dt>Audio engine</dt><dd id="diagContext">Not started</dd></div>
+              <div><dt>Output channels</dt><dd id="diagOutputChannels">Not active</dd></div>
               <div><dt>Processing latency</dt><dd id="diagLatency">Unavailable</dd></div>
+              <div><dt>Input/output pair</dt><dd id="diagPairing">Not reported</dd></div>
+              <div><dt>Browser APIs</dt><dd id="diagApiSupport">Checking</dd></div>
               <div><dt>Requested mode</dt><dd id="diagMode">Not running</dd></div>
             </dl>
+            <p class="diagnostic-limit">Not exposed: Bluetooth profile or codec, signal strength, battery, system volume, and true round-trip latency.</p>
           </section>
 
           <section class="tool-block calibration" aria-labelledby="calibrationTitle">
@@ -155,6 +165,6 @@
       <p>Manual mode lets you request either transition yourself. The microphone is duplicated into both browser output channels, although the Bluetooth call profile may still be mono.</p>
       <p>For best results, select your Bluetooth headset for both input and output in your system settings. Use headphones to prevent feedback.</p>
     </dialog>
-    <script type="module" src="./app.js?v=20260902-manual-default"></script>
+    <script type="module" src="./app.js?v=20260902-expanded-diagnostics"></script>
   </body>
 </html>

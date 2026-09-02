@@ -47,7 +47,9 @@ The expandable **Setup & calibration** panel provides:
 
 - Microphone input selection, including live re-acquisition when changed in
   headset mode.
-- Browser, input-format, permission, and latency diagnostics.
+- Browser API support, permission, device, live track health, actual and
+  requested capture settings, processing flags, capability ranges, channel
+  capacity, device pairing, and latency diagnostics.
 - Independent microphone loopback and headset-music volume controls.
 - Left, both, and right channel tones, a microphone mute control, and a live
   clipping indicator.
@@ -57,6 +59,9 @@ The expandable **Setup & calibration** panel provides:
 Device names and routing capabilities vary by browser and operating system.
 The Bluetooth-input warning is a label-based hint, so system audio settings
 remain the source of truth.
+
+The standards-backed inventory of available and unavailable browser data is in
+[`docs/browser-audio-diagnostics.md`](docs/browser-audio-diagnostics.md).
 
 > Browsers do not expose direct A2DP/HFP profile controls. Requesting the
 > microphone generally causes the operating system to negotiate the headset
